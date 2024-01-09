@@ -94,6 +94,8 @@ func drawChunk(chunk chunk, img image.Image, startX int, startY int, wg *sync.Wa
 }
 
 func drawImage(path string, startX int, startY int, threads int, size float64, conn net.Conn) error {
+
+    t0 := time.Now()
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -123,7 +125,6 @@ func drawImage(path string, startX int, startY int, threads int, size float64, c
     chunkWidth := int(scaledWidth / threads)
     var chunks []chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
 
-    t0 := time.Now()
 	var wg sync.WaitGroup
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
@@ -131,7 +132,7 @@ func drawImage(path string, startX int, startY int, threads int, size float64, c
 	}
 
 	wg.Wait()
-    fmt.Printf("Time it took to send all drawing command: %v\n", time.Since(t0))
+    fmt.Printf("drawImage runtime: %v\n", time.Since(t0))
 
 	return nil
 }
@@ -141,7 +142,7 @@ func main() {
     var host      *string = flag.String("host", "", "The PixelFlut server host ip or domain.")
     var port      *string = flag.String("port", "", "The port of the PixelFlut server.")
     var imagePath *string = flag.String("image", "", "The path to the image to draw.")
-    var threads      *int = flag.Int("threads", 4, "Number of threads to use.")
+    var threads      *int = flag.Int("threads", 1, "Number of threads to use.")
 
     required := []string{"host", "port"}
     flag.Parse()
@@ -155,6 +156,11 @@ func main() {
         }
     }
 
+    if (*threads == 0) {
+        fmt.Fprintln(os.Stderr, "Don't be silly")
+        os.Exit(1)
+    }
+
     connString := fmt.Sprintf("%s:%s", *host, *port)
     conn, err := net.Dial("tcp", connString)
     if err != nil {
@@ -163,10 +169,11 @@ func main() {
     }
     defer conn.Close()
 
-    err = drawImage(*imagePath, 0, 0, *threads, 0.5, conn)
+    err = drawImage(*imagePath, 800, 0, *threads, 0.5, conn)
     if err != nil {
         fmt.Fprintln(os.Stderr, "Could not draw image:" + "\n", err)
         os.Exit(1)
     }
+
 
 }
