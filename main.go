@@ -11,34 +11,38 @@ import (
 	"net"
 	"os"
 	"sync"
-	"time"
+	// "time"
 )
 
 
 type size struct {
-    width  int
-    height int
+	width  int
+	height int
 }
 
 type chunk struct {
-    xPos   int
-    width  int
-    height int
-    scale  float64
+	xPos   int
+	width  int
+	height int
+	scale  float64
 }
 
-func getSize(conn net.Conn) *size {
 
-    var canvasSize size
-    conn.Write([]byte("SIZE\n"))
-    reply, err := bufio.NewReader(conn).ReadString('\n')
-    if err != nil {
-        fmt.Println("Could not get size: ", err)
-        return nil
-    }
+var (
+    canvasSize size
+)
 
-    fmt.Sscanf(reply, "SIZE %d %d", &canvasSize.width, &canvasSize.height)
-    return &canvasSize
+func getCanvasSize(conn net.Conn) error {
+
+	conn.Write([]byte("SIZE\n"))
+	reply, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return err
+	}
+
+	fmt.Sscanf(reply, "SIZE %d %d", &canvasSize.width, &canvasSize.height)
+	// return canvasSize
+    return nil
 }
 
 func writePixel(x, y, r, g, b, a int, conn net.Conn) {
@@ -59,43 +63,8 @@ func drawRect(x, y, w, h, r, g, b int, conn net.Conn) {
 	}
 }
 
-func makeChunks(threadsCount int, chunkWidth int, chunkHeight int, chunkScale float64) []chunk {
+func bouncingImage(x, y, xvel, yvel int, path string, size float64, conn net.Conn, threads int) error {
 
-    chunks := make([]chunk, threadsCount)   // As many chunks as threads
-    currIndex := 0
-    for i := 0; i < len(chunks); i++{
-        chunks[i] = chunk{
-            xPos   : currIndex,
-            width  : chunkWidth,
-            height : chunkHeight,
-            scale  : chunkScale,
-        }
-
-        currIndex += chunkWidth
-    }
-
-    return chunks
-}
-
-func drawChunk(chunk chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
-
-    defer wg.Done()
-
-    for x := chunk.xPos; x < (chunk.xPos + chunk.width); x++ {
-        for y := 0; y <= chunk.height; y++ {
-            scaledX := int(float64(x) / chunk.scale)
-            scaledY := int(float64(y) / chunk.scale)
-
-            r, g, b, a := img.At(scaledX, scaledY).RGBA()
-            writePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
-        }
-    }
-
-}
-
-func drawImage(path string, startX int, startY int, threads int, size float64, conn net.Conn) error {
-
-    t0 := time.Now()
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -107,11 +76,63 @@ func drawImage(path string, startX int, startY int, threads int, size float64, c
 		return err
 	}
 
+    imgWidth, imgHeight, _ := getImageSize(img, size, conn)
+
+    for true {
+        x += xvel
+        y += yvel
+
+        if x + imgWidth > canvasSize.width || x + imgWidth < 0 || x > canvasSize.width || x < 0 {
+            xvel *= -1
+        }
+        if y + imgHeight > canvasSize.height || y + imgHeight < 0 || y > canvasSize.height || y < 0{
+            yvel *= -1
+        }
+
+        drawImage(path, x, y, threads, size, conn)
+    }
+    return nil
+}
+
+func makeChunks(threadsCount int, chunkWidth int, chunkHeight int, chunkScale float64) []chunk {
+
+	chunks := make([]chunk, threadsCount)   // As many chunks as threads
+	currIndex := 0
+	for i := 0; i < len(chunks); i++{
+		chunks[i] = chunk{
+			xPos   : currIndex,
+			width  : chunkWidth,
+			height : chunkHeight,
+			scale  : chunkScale,
+		}
+
+		currIndex += chunkWidth
+	}
+
+	return chunks
+}
+
+func drawChunk(chunk chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
+
+	defer wg.Done()
+
+	for x := chunk.xPos; x < (chunk.xPos + chunk.width); x++ {
+		for y := 0; y <= chunk.height; y++ {
+			scaledX := int(float64(x) / chunk.scale)
+			scaledY := int(float64(y) / chunk.scale)
+
+			r, g, b, a := img.At(scaledX, scaledY).RGBA()
+			writePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
+		}
+	}
+
+}
+
+func getImageSize(img image.Image, size float64, conn net.Conn) (int, int, float64) {
+
 	bounds := img.Bounds()
 	imgWidth := bounds.Max.X
 	imgHeight := bounds.Max.Y
-
-    canvasSize := getSize(conn)
 
 	// Calculate scaling factors
 	widthScale := float64(canvasSize.width) / float64(imgWidth)
@@ -120,60 +141,106 @@ func drawImage(path string, startX int, startY int, threads int, size float64, c
 
 	// Calculate scaled dimensions
 	scaledWidth := int(float64(imgWidth) * scale)
-    scaledHeight := int(float64(imgHeight) * scale)
+	scaledHeight := int(float64(imgHeight) * scale)
 
-    chunkWidth := int(scaledWidth / threads)
-    var chunks []chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
+    return scaledWidth, scaledHeight, scale
+}
+
+func processImage(img image.Image, startX int, startY int, threads int, size float64, conn net.Conn) error {
+
+    scaledWidth, scaledHeight, scale := getImageSize(img, size, conn)
+
+	chunkWidth := int(scaledWidth / threads)
+	var chunks []chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
 
 	var wg sync.WaitGroup
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-        go drawChunk(chunks[i], img, startX, startY, &wg, conn)
+		go drawChunk(chunks[i], img, startX, startY, &wg, conn)
 	}
 
 	wg.Wait()
-    fmt.Printf("drawImage runtime: %v\n", time.Since(t0))
 
 	return nil
 }
 
+func drawImage(path string, startX, startY int, threads int, size float64, conn net.Conn) error {
+
+	// t0 := time.Now()
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return err
+	}
+
+    if (startX == -1 && startY == -1) {
+
+        scaledWidth, scaledHeight, _ := getImageSize(img, size, conn)
+
+        startX = (canvasSize.width / 2) - (scaledWidth / 2)
+        startY = (canvasSize.height / 2) - (scaledHeight / 2)
+    }
+
+    processImage(img, startX, startY, threads, size, conn)
+    // fmt.Printf("drawImage runtime: %v\n", time.Since(t0))
+
+    return nil
+}
+
+func wipeCanvas(conn net.Conn) {
+    drawRect(0, 0, canvasSize.width, canvasSize.height, 50, 50, 50, conn)
+}
+
+func applyBackground(r, g, b int, conn net.Conn) {
+    drawRect(0, 0, canvasSize.width, canvasSize.height, r, g, b, conn)
+}
+
 func main() {
 
-    var host      *string = flag.String("host", "", "The PixelFlut server host ip or domain.")
-    var port      *string = flag.String("port", "", "The port of the PixelFlut server.")
-    var imagePath *string = flag.String("image", "", "The path to the image to draw.")
-    var threads      *int = flag.Int("threads", 1, "Number of threads to use.")
+	var host      *string = flag.String("host", "", "The PixelFlut server host ip or domain.")
+	var port      *string = flag.String("port", "", "The port of the PixelFlut server.")
+	var imagePath *string = flag.String("image", "", "The path to the image to draw.")
+	var threads      *int = flag.Int("threads", 1, "Number of threads to use.")
 
-    required := []string{"host", "port"}
-    flag.Parse()
+	required := []string{"host", "port"}
+	flag.Parse()
 
-    seen := make(map[string]bool)
-    flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
-    for _, req := range required {
-        if !seen[req] {
-            flag.Usage()
-            os.Exit(2)
-        }
-    }
+	seen := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
+	for _, req := range required {
+		if !seen[req] {
+			flag.Usage()
+			os.Exit(2)
+		}
+	}
 
-    if (*threads == 0) {
-        fmt.Fprintln(os.Stderr, "Don't be silly")
-        os.Exit(1)
-    }
+	if (*threads == 0) {
+		fmt.Fprintln(os.Stderr, "Don't be silly")
+		os.Exit(1)
+	}
 
-    connString := fmt.Sprintf("%s:%s", *host, *port)
-    conn, err := net.Dial("tcp", connString)
-    if err != nil {
-        fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
-        os.Exit(1)
-    }
-    defer conn.Close()
+	connString := fmt.Sprintf("%s:%s", *host, *port)
+	conn, err := net.Dial("tcp", connString)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
 
-    err = drawImage(*imagePath, 800, 0, *threads, 0.5, conn)
-    if err != nil {
-        fmt.Fprintln(os.Stderr, "Could not draw image:" + "\n", err)
-        os.Exit(1)
-    }
+    getCanvasSize(conn)
 
+    // wipeCanvas(conn)
 
+    bouncingImage(0, 0, 50, 70, *imagePath, 0.2, conn, *threads)
+
+	// err = drawImage(*imagePath, -1, -1, *threads, 0.5, conn)
+	// if err != nil {
+	//     fmt.Fprintln(os.Stderr, "Could not draw image:" + "\n", err)
+	//     os.Exit(1)
+	// }
 }
