@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 )
 
 
@@ -76,11 +77,12 @@ func makeChunks(threadsCount int, chunkWidth int, chunkHeight int, chunkScale fl
     return chunks
 }
 
-func drawChunk(chunk *chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
+func drawChunk(chunk chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
 
     defer wg.Done()
-    for x := chunk.xPos; x < chunk.width; x++ {
-        for y := 0; y < chunk.height; y++ {
+
+    for x := chunk.xPos; x < (chunk.xPos + chunk.width); x++ {
+        for y := 0; y <= chunk.height; y++ {
             scaledX := int(float64(x) / chunk.scale)
             scaledY := int(float64(y) / chunk.scale)
 
@@ -116,17 +118,20 @@ func drawImage(path string, startX int, startY int, threads int, size float64, c
 
 	// Calculate scaled dimensions
 	scaledWidth := int(float64(imgWidth) * scale)
-	scaledHeight := int(float64(imgHeight) * scale)
+    scaledHeight := int(float64(imgHeight) * scale)
 
-   var chunks []chunk = makeChunks(threads, scaledWidth, scaledHeight, scale) 
+    chunkWidth := int(scaledWidth / threads)
+    var chunks []chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
 
+    t0 := time.Now()
 	var wg sync.WaitGroup
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-        go drawChunk(&chunks[i], img, startX, startY, &wg, conn)
+        go drawChunk(chunks[i], img, startX, startY, &wg, conn)
 	}
 
 	wg.Wait()
+    fmt.Printf("Time it took to send all drawing command: %v\n", time.Since(t0))
 
 	return nil
 }
@@ -158,7 +163,7 @@ func main() {
     }
     defer conn.Close()
 
-    err = drawImage(*imagePath, 0, 0, *threads, 1, conn)
+    err = drawImage(*imagePath, 0, 0, *threads, 0.5, conn)
     if err != nil {
         fmt.Fprintln(os.Stderr, "Could not draw image:" + "\n", err)
         os.Exit(1)
