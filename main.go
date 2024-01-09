@@ -19,6 +19,13 @@ type size struct {
     height int
 }
 
+type chunk struct {
+    xPos   int
+    width  int
+    height int
+    scale  float64
+}
+
 func getSize(conn net.Conn) *size {
 
     var canvasSize size
@@ -51,7 +58,40 @@ func drawRect(x, y, w, h, r, g, b int, conn net.Conn) {
 	}
 }
 
-func drawImage(path string, startX int, startY int, threads int, conn net.Conn) error {
+func makeChunks(threadsCount int, chunkWidth int, chunkHeight int, chunkScale float64) []chunk {
+
+    chunks := make([]chunk, threadsCount)   // As many chunks as threads
+    currIndex := 0
+    for i := 0; i < len(chunks); i++{
+        chunks[i] = chunk{
+            xPos   : currIndex,
+            width  : chunkWidth,
+            height : chunkHeight,
+            scale  : chunkScale,
+        }
+
+        currIndex += chunkWidth
+    }
+
+    return chunks
+}
+
+func drawChunk(chunk *chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
+
+    defer wg.Done()
+    for x := chunk.xPos; x < chunk.width; x++ {
+        for y := 0; y < chunk.height; y++ {
+            scaledX := int(float64(x) / chunk.scale)
+            scaledY := int(float64(y) / chunk.scale)
+
+            r, g, b, a := img.At(scaledX, scaledY).RGBA()
+            writePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
+        }
+    }
+
+}
+
+func drawImage(path string, startX int, startY int, threads int, size float64, conn net.Conn) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -72,34 +112,19 @@ func drawImage(path string, startX int, startY int, threads int, conn net.Conn) 
 	// Calculate scaling factors
 	widthScale := float64(canvasSize.width) / float64(imgWidth)
 	heightScale := float64(canvasSize.height) / float64(imgHeight)
-	scale := math.Min(widthScale, heightScale)
+	scale := math.Min(widthScale, heightScale) * size
 
 	// Calculate scaled dimensions
 	scaledWidth := int(float64(imgWidth) * scale)
 	scaledHeight := int(float64(imgHeight) * scale)
 
+   var chunks []chunk = makeChunks(threads, scaledWidth, scaledHeight, scale) 
+
 	var wg sync.WaitGroup
-	work := make(chan int, scaledWidth)
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for x := range work {
-				for y := 0; y < scaledHeight; y++ {
-					scaledX := int(float64(x) / scale)
-					scaledY := int(float64(y) / scale)
-
-					r, g, b, a := img.At(scaledX, scaledY).RGBA()
-					writePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
-				}
-			}
-		}()
+        go drawChunk(&chunks[i], img, startX, startY, &wg, conn)
 	}
-
-	for x := 0; x < scaledWidth; x++ {
-		work <- x
-	}
-	close(work)
 
 	wg.Wait()
 
@@ -133,7 +158,7 @@ func main() {
     }
     defer conn.Close()
 
-    err = drawImage(*imagePath, 0, 0, *threads, conn)
+    err = drawImage(*imagePath, 0, 0, *threads, 1, conn)
     if err != nil {
         fmt.Fprintln(os.Stderr, "Could not draw image:" + "\n", err)
         os.Exit(1)
