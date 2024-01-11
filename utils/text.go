@@ -2,6 +2,7 @@ package utils
 
 import (
 	"image"
+	"image/draw"
 	"log"
 	"net"
 	"os"
@@ -27,32 +28,36 @@ func DrawText(text string, startX, startY int, size float64, color string, cente
 	}
 
 	// Initialize the context.
-	// fg, bg := image.Black, image.White
-	fg := image.Black
+	fg, bg := image.Black, image.White
+	// fg := image.Black
 
-    switch color {
+    // switch color {
+    //
+    // case "white":
+	   //  fg = image.White
+    //
+    // case "black":
+    //     fg = image.Black
+    //
+    // default:
+    //     fg = image.Black
+    // }
 
-    case "white":
-	    fg = image.White
-
-    case "black":
-        fg = image.Black
-
-    default:
-        fg = image.Black
-    }
-
-	rgba := image.NewRGBA(image.Rect(0, 0, canvasSize.width, canvasSize.height))
-	// draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
+	rgba := image.NewRGBA(image.Rect(0, 0, (int(size) * len(text)) * 3, (int(size) * 6)))
+	draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
 	c := freetype.NewContext()
 	c.SetDPI(300)
 	c.SetFont(f)
-	c.SetFontSize(size)
 	c.SetClip(rgba.Bounds())
 	c.SetDst(rgba)
 	c.SetSrc(fg)
+	c.SetFontSize(size)
     // c.SetHinting(font.HintingNone)
     c.SetHinting(font.HintingFull)
+
+    bounds := rgba.Bounds()
+    width  := bounds.Max.X
+    height := bounds.Max.Y
 
     pt := freetype.Pt(10, 5 +int(c.PointToFixed(size) >> 6))
 	c.SetSrc(image.Black)
@@ -61,20 +66,8 @@ func DrawText(text string, startX, startY int, size float64, color string, cente
         return
     }
 
-
-    pt = freetype.Pt(8 , 4 +int(c.PointToFixed(size - 2) >> 6))
-	c.SetSrc(image.White)
-    if _, err := c.DrawString(text, pt); err != nil {
-        log.Println(err)
-        return
-    }
-
-    bounds := rgba.Bounds()
-    width  := bounds.Max.X
-    height := bounds.Max.Y
-
     if (center == true) {
-        startX = (canvasSize.width / 2) - (width / 2)
+        startX = (canvasSize.width  / 2) - (width  / 2)
         startY = (canvasSize.height / 2) - (height / 2)
     }
 
