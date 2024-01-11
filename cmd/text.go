@@ -23,7 +23,7 @@ var (
 
 func init() {
 	textCmd.Flags().StringVarP(&text, "text", "t", "", "Text to be rendered.")
-	textCmd.Flags().StringVarP(&fontColor, "font-color", "c", "white", "Color of text (white, black, red.. etc).")
+	textCmd.Flags().StringVarP(&fontColor, "font-color", "c", "black", "Color of text (only black and white for now).")
 	textCmd.Flags().Float64VarP(&fontSize, "font-size", "s", 12, "Font size of text.")
 
     textCmd.MarkFlagRequired("text")
@@ -41,6 +41,6 @@ func runText(cmd *cobra.Command, args []string) {
     }
     defer conn.Close()
 
-    utils.DrawText(text, startX, startY, fontSize, conn)
+    utils.DrawText(text, startX, startY, fontSize, fontColor, conn)
 
 }

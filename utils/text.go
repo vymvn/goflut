@@ -11,7 +11,7 @@ import (
 )
 
 
-func DrawText(text string, startX, startY int, size float64, conn net.Conn) {
+func DrawText(text string, startX, startY int, size float64, color string, conn net.Conn) {
 
     fontBytes, err := os.ReadFile("fonts/Lato-Regular.ttf")
     if err != nil {
@@ -27,6 +27,19 @@ func DrawText(text string, startX, startY int, size float64, conn net.Conn) {
 	// Initialize the context.
 	// fg, bg := image.Black, image.White
 	fg := image.Black
+
+    switch color {
+
+    case "white":
+	    fg = image.White
+
+    case "black":
+        fg = image.Black
+
+    default:
+        fg = image.Black
+    }
+
 	rgba := image.NewRGBA(image.Rect(0, 0, 800, 200))
 	// draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
 	c := freetype.NewContext()

@@ -1,13 +1,11 @@
 package utils
 
 import (
-	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
 	"net"
-	"os"
 )
 
 func getScaledImageSize(img image.Image, size float64, conn net.Conn) (int, int, float64) {
@@ -48,11 +46,11 @@ func getScaledImageSize(img image.Image, size float64, conn net.Conn) (int, int,
 //     return nil
 // }
 
-func drawImage(img image.Image, startX int, startY int, size float64, center bool, conn net.Conn) error {
+func DrawImage(img image.Image, startX int, startY int, size float64, center bool, conn net.Conn) error {
 
     scaledWidth, scaledHeight, scale := getScaledImageSize(img, size, conn)
 
-	fmt.Println("[*] Drawing image to canvas..")
+	// fmt.Println("[*] Drawing image to canvas..")
     for x := 0; x < scaledWidth; x++ {
 
         for y := 0; y <= scaledHeight; y++ {
@@ -99,27 +97,27 @@ func drawImage(img image.Image, startX int, startY int, size float64, center boo
 //     return nil
 // }
 
-func DrawImageFromPath(path string, startX, startY int, size float64, center bool, conn net.Conn) error {
-
-    f, err := os.Open(path)
-    if err != nil {
-        return err
-    }
-    defer f.Close()
-
-    img, _, err := image.Decode(f)
-    if err != nil {
-        return err
-    }
-
-    if (center == true) {
-
-        scaledWidth, scaledHeight, _ := getScaledImageSize(img, size, conn)
-        startX = (canvasSize.width / 2) - (scaledWidth / 2)
-        startY = (canvasSize.height / 2) - (scaledHeight / 2)
-    }
-
-    drawImage(img, startX, startY, size, center, conn)
-
-    return nil
-}
+// func DrawImageFromPath(path string, startX, startY int, size float64, center bool, conn net.Conn) error {
+//
+//     f, err := os.Open(path)
+//     if err != nil {
+//         return err
+//     }
+//     defer f.Close()
+//
+//     img, _, err := image.Decode(f)
+//     if err != nil {
+//         return err
+//     }
+//
+//     if (center == true) {
+//
+//         scaledWidth, scaledHeight, _ := getScaledImageSize(img, size, conn)
+//         startX = (canvasSize.width / 2) - (scaledWidth / 2)
+//         startY = (canvasSize.height / 2) - (scaledHeight / 2)
+//     }
+//
+//     drawImage(img, startX, startY, size, center, conn)
+//
+//     return nil
+// }

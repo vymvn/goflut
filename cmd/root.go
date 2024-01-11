@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"os"
-	"os/signal"
 
 	"github.com/spf13/cobra"
 )
@@ -27,25 +25,25 @@ var rootCmd = &cobra.Command{
 
 var mainContext context.Context
 func Execute() {
-	var cancel context.CancelFunc
-	mainContext, cancel = context.WithCancel(context.Background())
-	defer cancel()
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	defer func() {
-		signal.Stop(signalChan)
-		cancel()
-	}()
-	go func() {
-		select {
-		case <-signalChan:
-			// caught CTRL+C
-			fmt.Println("\n[!] Keyboard interrupt detected, terminating.")
-			cancel()
-		case <-mainContext.Done():
-		}
-	}()
+	// var cancel context.CancelFunc
+	// mainContext, cancel = context.WithCancel(context.Background())
+	// defer cancel()
+	//
+	// signalChan := make(chan os.Signal, 1)
+	// signal.Notify(signalChan, os.Interrupt)
+	// defer func() {
+	// 	signal.Stop(signalChan)
+	// 	cancel()
+	// }()
+	// go func() {
+	// 	select {
+	// 	case <-signalChan:
+	// 		// caught CTRL+C
+	// 		fmt.Println("\n[!] Keyboard interrupt detected, terminating.")
+	// 		cancel()
+	// 	case <-mainContext.Done():
+	// 	}
+	// }()
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
