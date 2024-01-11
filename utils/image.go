@@ -50,7 +50,11 @@ func DrawImage(img image.Image, startX int, startY int, size float64, center boo
 
     scaledWidth, scaledHeight, scale := getScaledImageSize(img, size, conn)
 
-	// fmt.Println("[*] Drawing image to canvas..")
+    if (center == true) {
+        startX = (canvasSize.width / 2) - (scaledWidth / 2)
+        startY = (canvasSize.height / 2) - (scaledHeight / 2)
+    }
+
     for x := 0; x < scaledWidth; x++ {
 
         for y := 0; y <= scaledHeight; y++ {
