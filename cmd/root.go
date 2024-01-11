@@ -14,6 +14,7 @@ var (
     port   int
     startX int
     startY int
+    center    bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -55,6 +56,7 @@ func init() {
     rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 0, "You know what to put here")
     rootCmd.PersistentFlags().IntVarP(&startX, "x-offset", "x", 0, "X axis offset.")
     rootCmd.PersistentFlags().IntVarP(&startY, "y-offset", "y", 0, "Y axis offset.")
+    rootCmd.PersistentFlags().BoolVar(&center, "center", false, "Centers the drawing.")
 
     rootCmd.MarkPersistentFlagRequired("host")
     rootCmd.MarkPersistentFlagRequired("host")

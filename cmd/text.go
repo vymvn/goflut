@@ -41,6 +41,6 @@ func runText(cmd *cobra.Command, args []string) {
     }
     defer conn.Close()
 
-    utils.DrawText(text, startX, startY, fontSize, fontColor, conn)
+    utils.DrawText(text, startX, startY, fontSize, fontColor, center, conn)
 
 }

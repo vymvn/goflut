@@ -11,7 +11,9 @@ import (
 )
 
 
-func DrawText(text string, startX, startY int, size float64, color string, conn net.Conn) {
+func DrawText(text string, startX, startY int, size float64, color string, center bool, conn net.Conn) {
+
+    getCanvasSize(&canvasSize, conn)
 
     fontBytes, err := os.ReadFile("fonts/Lato-Regular.ttf")
     if err != nil {
@@ -40,7 +42,7 @@ func DrawText(text string, startX, startY int, size float64, color string, conn 
         fg = image.Black
     }
 
-	rgba := image.NewRGBA(image.Rect(0, 0, 800, 200))
+	rgba := image.NewRGBA(image.Rect(0, 0, canvasSize.width, canvasSize.height))
 	// draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
 	c := freetype.NewContext()
 	c.SetDPI(300)
@@ -49,11 +51,19 @@ func DrawText(text string, startX, startY int, size float64, color string, conn 
 	c.SetClip(rgba.Bounds())
 	c.SetDst(rgba)
 	c.SetSrc(fg)
-    c.SetHinting(font.HintingNone)
-    // c.SetHinting(font.HintingFull)
+    // c.SetHinting(font.HintingNone)
+    c.SetHinting(font.HintingFull)
 
     pt := freetype.Pt(10, 5 +int(c.PointToFixed(size) >> 6))
+	c.SetSrc(image.Black)
+    if _, err := c.DrawString(text, pt); err != nil {
+        log.Println(err)
+        return
+    }
 
+
+    pt = freetype.Pt(8 , 4 +int(c.PointToFixed(size - 2) >> 6))
+	c.SetSrc(image.White)
     if _, err := c.DrawString(text, pt); err != nil {
         log.Println(err)
         return
@@ -62,6 +72,11 @@ func DrawText(text string, startX, startY int, size float64, color string, conn 
     bounds := rgba.Bounds()
     width  := bounds.Max.X
     height := bounds.Max.Y
+
+    if (center == true) {
+        startX = (canvasSize.width / 2) - (width / 2)
+        startY = (canvasSize.height / 2) - (height / 2)
+    }
 
     for x := 0; x < width; x++ {
         for y := 0; y < height; y++ {

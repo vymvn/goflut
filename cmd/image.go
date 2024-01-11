@@ -22,7 +22,6 @@ var (
     yVel   int
     imagePath string
     size      float64
-    center    bool
 )
 
 func init() {
@@ -33,7 +32,7 @@ func init() {
     imageCmd.MarkFlagRequired("image")
     imageCmd.Flags().IntVar(&startX, "x", 0, "Starting X")
     imageCmd.Flags().IntVar(&startY, "y", 0, "Starting Y")
-    imageCmd.Flags().BoolVar(&center, "center", false, "Center image on canvas")
+    // imageCmd.Flags().BoolVar(&center, "center", false, "Center image on canvas")
     imageCmd.Flags().BoolVar(&bounce, "bounce", false, "Bounce around (best used with a smaller picture)")
 	imageCmd.Flags().IntVar(&xVel, "x-vel", 1, "The velocity on the X-Axis. (only for bounce mode)")
 	imageCmd.Flags().IntVar(&yVel, "y-vel", 2, "The velocity on the Y-Axis. (only for bounce mode)")
