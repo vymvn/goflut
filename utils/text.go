@@ -3,7 +3,6 @@ package utils
 import (
 	"image"
 	"image/draw"
-	"log"
 	"net"
 	"os"
 
@@ -12,36 +11,21 @@ import (
 )
 
 
-func DrawText(text string, startX, startY int, size float64, color string, center bool, conn net.Conn) {
+func DrawText(text string, startX, startY int, size float64, center bool, conn net.Conn) error {
 
     getCanvasSize(&canvasSize, conn)
 
     fontBytes, err := os.ReadFile("fonts/Lato-Regular.ttf")
     if err != nil {
-        log.Println(err)
-        return
+        return err
     }
 	f, err := freetype.ParseFont(fontBytes)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	// Initialize the context.
 	fg, bg := image.Black, image.White
-	// fg := image.Black
-
-    // switch color {
-    //
-    // case "white":
-	   //  fg = image.White
-    //
-    // case "black":
-    //     fg = image.Black
-    //
-    // default:
-    //     fg = image.Black
-    // }
 
 	rgba := image.NewRGBA(image.Rect(0, 0, (int(size) * len(text)) * 3, (int(size) * 6)))
 	draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
@@ -62,9 +46,15 @@ func DrawText(text string, startX, startY int, size float64, color string, cente
     pt := freetype.Pt(10, 5 +int(c.PointToFixed(size) >> 6))
 	c.SetSrc(image.Black)
     if _, err := c.DrawString(text, pt); err != nil {
-        log.Println(err)
-        return
+        return err
     }
+
+
+    // Use this after removing the scaling code or somthing
+    // err = DrawImage(rgba, startX, startY, 1, center, conn)
+    // if err != nil {
+    //     return err
+    // }
 
     if (center == true) {
         startX = (canvasSize.width  / 2) - (width  / 2)
@@ -77,5 +67,7 @@ func DrawText(text string, startX, startY int, size float64, color string, cente
             WritePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
         }
     }
+
+    return nil
 
 }
