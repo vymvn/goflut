@@ -27,7 +27,7 @@ func DrawText(text string, startX, startY int, size float64, center bool, conn n
 	// Initialize the context.
 	fg, bg := image.Black, image.White
 
-	rgba := image.NewRGBA(image.Rect(0, 0, (int(size) * len(text)) * 3, (int(size) * 6)))
+	rgba := image.NewRGBA(image.Rect(0, 0, (int(size) * len(text)) * 2, (int(size) * 6)))
 	draw.Draw(rgba, rgba.Bounds(), bg, image.Point{}, draw.Src)
 	c := freetype.NewContext()
 	c.SetDPI(300)
