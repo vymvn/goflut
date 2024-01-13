@@ -28,6 +28,16 @@ func getScaledImageSize(img image.Image, size float64, conn net.Conn) (int, int,
     return scaledWidth, scaledHeight, scale
 }
 
+
+func getImageSize(img image.Image, conn net.Conn) (int, int) {
+
+    bounds := img.Bounds()
+    imgWidth := bounds.Max.X
+    imgHeight := bounds.Max.Y
+
+    return imgWidth, imgHeight
+}
+
 // func drawImage(img image.Image, startX int, startY int, threads int, size float64, conn net.Conn) error {
 //
 //     scaledWidth, scaledHeight, scale := getImageSize(img, size, conn)
