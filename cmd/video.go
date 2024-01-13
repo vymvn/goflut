@@ -17,13 +17,16 @@ var videoCmd = &cobra.Command{
 
 var (
     videoPath string
+    videoLoop bool
+    videoSize float64
 )
 
 func init() {
 	rootCmd.AddCommand(videoCmd)
 
 	videoCmd.Flags().StringVarP(&videoPath, "video", "v", "", "Help message for toggle")
-    videoCmd.Flags().Float64VarP(&size, "size", "s", 1, "Size of the image where 1 is the original size.")
+    videoCmd.Flags().Float64VarP(&videoSize, "size", "s", 1, "Size of the image where 1 is the original size.")
+    videoCmd.Flags().BoolVar(&videoLoop, "loop", false, "Keeps drawing in a loop.")
     videoCmd.MarkFlagRequired("video")
 }
 
@@ -38,5 +41,13 @@ func runVideo(cmd *cobra.Command, args []string) {
     }
     defer conn.Close()
 
-    utils.DrawVideo(videoPath, startX, startY, size, center, conn)
+    if videoLoop {
+
+        for true {
+            utils.DrawVideo(videoPath, startX, startY, videoSize, center, conn)
+        }
+    } else {
+        utils.DrawVideo(videoPath, startX, startY, videoSize, center, conn)
+    }
+
 }
