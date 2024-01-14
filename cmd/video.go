@@ -18,7 +18,7 @@ var videoCmd = &cobra.Command{
 var (
     videoPath    string
     videoLoop    bool
-    videoSize    float64
+    // videoSize    float64
     videoThreads int
 )
 
@@ -26,7 +26,7 @@ func init() {
 	rootCmd.AddCommand(videoCmd)
 
 	videoCmd.Flags().StringVarP(&videoPath, "video", "v", "", "Help message for toggle")
-    videoCmd.Flags().Float64VarP(&videoSize, "size", "s", 1, "Size of the image where 1 is the original size.")
+    // videoCmd.Flags().Float64VarP(&videoSize, "size", "s", 1, "Size of the image where 1 is the original size.")
     videoCmd.Flags().BoolVar(&videoLoop, "loop", false, "Keeps drawing in a loop.")
     videoCmd.Flags().IntVar(&videoThreads, "threads", 1, "Number of threads.")
     videoCmd.MarkFlagRequired("video")

@@ -18,11 +18,13 @@ var textCmd = &cobra.Command{
 var (
     text      string
     fontSize  float64
+    textLoop  bool
 )
 
 func init() {
 	textCmd.Flags().StringVarP(&text, "text", "t", "", "Text to be rendered.")
 	textCmd.Flags().Float64VarP(&fontSize, "font-size", "s", 12, "Font size of text.")
+    textCmd.Flags().BoolVar(&textLoop, "loop", false, "Keeps drawing in a loop.")
 
     textCmd.MarkFlagRequired("text")
 
@@ -39,9 +41,26 @@ func runText(cmd *cobra.Command, args []string) {
     }
     defer conn.Close()
 
-    err = utils.DrawText(text, startX, startY, fontSize, center, conn)
-    if err != nil {
-        fmt.Fprintln(os.Stderr, "Could not draw text:\n", err)
+    if textLoop == true {
+
+        for true {
+
+            err = utils.DrawText(text, startX, startY, fontSize, center, conn)
+            if err != nil {
+                fmt.Fprintln(os.Stderr, "Could not draw text:\n", err)
+            }
+
+        }
+
+
+    } else {
+
+        err = utils.DrawText(text, startX, startY, fontSize, center, conn)
+        if err != nil {
+            fmt.Fprintln(os.Stderr, "Could not draw text:\n", err)
+        }
+
     }
+
 
 }
