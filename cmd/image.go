@@ -1,13 +1,13 @@
 package cmd
 
 import (
-    "fmt"
-    "image"
-    "net"
-    "os"
+	"fmt"
+	"image"
+	"net"
+	"os"
 
-    "github.com/spf13/cobra"
-    "github.com/vymvn/goflut/utils"
+	"github.com/spf13/cobra"
+	"github.com/vymvn/goflut/utils"
 )
 
 var imageCmd = &cobra.Command{
@@ -17,12 +17,13 @@ var imageCmd = &cobra.Command{
 }
 
 var (
-    imageBounce bool
-    imageLoop   bool
-    xVel        int
-    yVel        int
-    imagePath   string
-    imageSize   float64
+    imageBounce  bool
+    imageLoop    bool
+    xVel         int
+    yVel         int
+    imageThreads int
+    imagePath    string
+    imageSize    float64
 )
 
 func init() {
@@ -80,14 +81,15 @@ func runImage(cmd *cobra.Command, args []string) {
         if (imageLoop == true) {
 
             for true{
-                err = utils.DrawImage(img, startX, startY, imageSize, center, conn)
+                err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
                 if err != nil {
                     fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
                 }
             }
 
         } else {
-            err = utils.DrawImage(img, startX, startY, imageSize, center, conn)
+
+            err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
             if err != nil {
                 fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
             }

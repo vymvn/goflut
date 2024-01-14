@@ -2,10 +2,12 @@ package utils
 
 import (
 	"image"
+	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
 	"net"
+	"sync"
 )
 
 func getScaledImageSize(img image.Image, size float64, conn net.Conn) (int, int, float64) {
@@ -38,23 +40,57 @@ func getImageSize(img image.Image, conn net.Conn) (int, int) {
     return imgWidth, imgHeight
 }
 
-// func drawImage(img image.Image, startX int, startY int, threads int, size float64, conn net.Conn) error {
-//
-//     scaledWidth, scaledHeight, scale := getImageSize(img, size, conn)
-//
-//     chunkWidth := int(scaledWidth / threads)
-//     var chunks []chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
-//
-//     var wg sync.WaitGroup
-//     for i := 0; i < threads; i++ {
-//         wg.Add(1)
-//         go drawChunk(chunks[i], img, startX, startY, &wg, conn)
-//     }
-//
-//     wg.Wait()
-//
-//     return nil
-// }
+func NewDrawImage(img [][]color.RGBA, numThreads int) {
+    rowsPerThread := len(img) / numThreads
+
+    var wg sync.WaitGroup
+
+    for i := 0; i < numThreads; i++ {
+        startRow := i * rowsPerThread
+        endRow := startRow + rowsPerThread
+
+        // The last thread may have extra rows if the image height is not divisible evenly
+        if i == numThreads-1 {
+            endRow = len(img)
+        }
+
+        wg.Add(1)
+        go renderSection(img, startRow, endRow, &wg)
+    }
+
+    // Wait for all goroutines to finish
+    wg.Wait()
+}
+
+func renderSection(img [][]color.RGBA, startRow, endRow int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	// Render the specified section of the image
+	for row := startRow; row < endRow; row++ {
+		for col := 0; col < len(img[row]); col++ {
+			// Your rendering logic here
+			img[row][col] = color.RGBA{255, 0, 0, 255} // Example: Set pixel color to red
+		}
+	}
+}
+
+func DrawImageThreaded(img image.Image, startX int, startY int, size float64, threads int, center bool, conn net.Conn) error {
+
+    scaledWidth, scaledHeight, scale := getScaledImageSize(img, size, conn)
+
+    chunkWidth := scaledWidth / threads
+    var chunks []*chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
+
+    var wg sync.WaitGroup
+    for i := 0; i < threads; i++ {
+        wg.Add(1)
+        go drawChunk(chunks[i], img, startX, startY, &wg, conn)
+    }
+
+    wg.Wait()
+
+    return nil
+}
 
 func DrawImage(img image.Image, startX int, startY int, size float64, center bool, conn net.Conn) error {
 
