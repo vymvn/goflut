@@ -83,8 +83,8 @@ func DrawVideo(videoPath string, startX, startY int, size float64, threads int, 
 
     var wg sync.WaitGroup
     frame := 0
-    for video.Read() {
 
+    for video.Read() {
         for i := 0; i < threads; i++ {
             wg.Add(1)
             go drawChunk(chunks[i], img, startX, startY, &wg, conn)
@@ -92,7 +92,6 @@ func DrawVideo(videoPath string, startX, startY int, size float64, threads int, 
 
         wg.Wait()
 
-        // drawFrame(img, chunks, threads, startX, startY, size, center, conn)
         frame++
     }
 }

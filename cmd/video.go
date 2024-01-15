@@ -18,6 +18,7 @@ var videoCmd = &cobra.Command{
 var (
     videoPath    string
     videoLoop    bool
+    videoBounce  bool
     // videoSize    float64
     videoThreads int
 )
@@ -28,6 +29,7 @@ func init() {
 	videoCmd.Flags().StringVarP(&videoPath, "video", "v", "", "Help message for toggle")
     // videoCmd.Flags().Float64VarP(&videoSize, "size", "s", 1, "Size of the image where 1 is the original size.")
     videoCmd.Flags().BoolVar(&videoLoop, "loop", false, "Keeps drawing in a loop.")
+    videoCmd.Flags().BoolVar(&videoBounce, "bounce", false, "Bounce around (best used with a smaller video/gif)")
     videoCmd.Flags().IntVar(&videoThreads, "threads", 1, "Number of threads.")
     videoCmd.MarkFlagRequired("video")
 }
@@ -49,8 +51,9 @@ func runVideo(cmd *cobra.Command, args []string) {
             // utils.DrawVideo(videoPath, startX, startY, videoSize, videoThreads, center, conn)
             utils.NewDrawVideo(videoPath, startX, startY, center, videoThreads, conn)
         }
+    } else if videoBounce {
+        utils.BouncyDrawVideo(videoPath, startX, startY, center, videoThreads, conn)
     } else {
-        // utils.DrawVideo(videoPath, startX, startY, videoSize, videoThreads, center, conn)
         utils.NewDrawVideo(videoPath, startX, startY, center, videoThreads, conn)
     }
 
