@@ -36,6 +36,7 @@ func init() {
     // imageCmd.Flags().IntVar(&startY, "y", 0, "Starting Y")
     // imageCmd.Flags().BoolVar(&center, "center", false, "Center image on canvas")
     imageCmd.Flags().BoolVar(&imageBounce, "bounce", false, "Bounce around (best used with a smaller picture)")
+    imageCmd.Flags().IntVar(&imageThreads, "threads", 1, "Number of threads.")
     imageCmd.Flags().BoolVar(&imageLoop, "loop", false, "Keeps drawing in a loop.")
     imageCmd.Flags().IntVar(&xVel, "x-vel", 1, "The velocity on the X-Axis. (only for bounce mode)")
     imageCmd.Flags().IntVar(&yVel, "y-vel", 2, "The velocity on the Y-Axis. (only for bounce mode)")
@@ -90,6 +91,7 @@ func runImage(cmd *cobra.Command, args []string) {
         } else {
 
             err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
+            // err = utils.ExpDrawImageThreaded(img, startX, startY, imageThreads, center, conn)
             if err != nil {
                 fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
             }

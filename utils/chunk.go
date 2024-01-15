@@ -6,6 +6,14 @@ import (
 	"sync"
 )
 
+type expChunk struct {
+    xPos        int
+    width       int
+    height      int
+    scale       float64
+    prevBuffer *image.RGBA
+    currBuffer *image.RGBA
+}
 
 type chunk struct {
     xPos   int
@@ -16,6 +24,31 @@ type chunk struct {
 }
 
 
+func expMakeChunks(img image.Image, threadsCount int, chunkWidth int, chunkHeight int) []*expChunk {
+
+    chunks := make([]*expChunk, threadsCount)   // As many chunks as threads
+
+    currIndex := 0
+    for i := 0; i < len(chunks); i++{
+
+        bounds := image.Rect(0, 0, chunkWidth, chunkHeight)
+
+        prevBuffer := image.NewRGBA(bounds)
+        currBuffer := image.NewRGBA(bounds)
+
+        chunks[i] = &expChunk{
+            xPos   : currIndex,
+            width  : chunkWidth,
+            height : chunkHeight,
+            prevBuffer : prevBuffer,
+            currBuffer : currBuffer,
+        }
+
+        currIndex += chunkWidth
+    }
+
+    return chunks
+}
 
 func newMakeChunks(threadsCount int, chunkWidth int, chunkHeight int) []*chunk {
 
@@ -53,64 +86,24 @@ func makeChunks(threadsCount int, chunkWidth int, chunkHeight int, chunkScale fl
             scale  : chunkScale,
             buffer : chunkBuffer,
         }
-
         currIndex += chunkWidth
     }
 
     return chunks
 }
 
-
-// func drawChunk(chunk *chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
-//
-//     defer wg.Done()
-//
-//     fmt.Println("Before: ", img.At(0, 0), chunk.buffer.At(0, 0))
-//     for x := chunk.xPos; x < (chunk.xPos + chunk.width); x++ {
-//         for y := 0; y < chunk.height; y++ {
-//
-//             // fmt.Println(x, y)
-//             // fmt.Println(chunk.xPos, chunk.width, chunk.height)
-//             currPixelColor := img.At(x, y)
-//             // fmt.Println("chunk.buffer BEFORE if statement = ", chunk.buffer.At(x, y))
-//             // fmt.Println(currPixelColor, chunk.buffer.At(x, y))
-//             if (currPixelColor != chunk.buffer.At(x, y)) {
-//                 r, g, b, a := currPixelColor.RGBA()
-//                 WritePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
-//                 // fmt.Println("currPixelColor BEFORE Set() = ", currPixelColor)
-//                 // fmt.Println("chunk.buffer BEFORE Set() = ", chunk.buffer.At(x, y))
-//                 chunk.buffer.Set(x, y, currPixelColor)
-//                 // fmt.Println("chunk.buffer AFTER Set() = ", chunk.buffer.At(x, y), "\n")
-//             } else {
-//                 fmt.Println("Skipping already drawn pixel: ", currPixelColor)
-//             }
-//         }
-//     }
-//
-//     fmt.Println("After: ", img.At(0, 0), chunk.buffer.At(0, 0))
-//
-//
-// }
-
-
 func newDrawChunk(chunk *chunk, img image.Image, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
 
     defer wg.Done()
 
     for x := chunk.xPos; x < (chunk.xPos + chunk.width); x++ {
-        for y := 0; y <= chunk.height; y++ {
+        for y := 0; y < chunk.height; y++ {
 
-            // fmt.Println(x, y)
-            // fmt.Println(chunk.xPos, chunk.width, chunk.height)
             currPixelColor := img.At(x, y)
             if (currPixelColor != chunk.buffer.At(x, y)) {
                 r, g, b, a := currPixelColor.RGBA()
                 WritePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
-                // fmt.Println("chunk.buffer BEFORE Set() = ", *chunk.buffer)
                 chunk.buffer.Set(x + startX, y + startY, currPixelColor)
-                // fmt.Println("chunk.buffer AFTER Set() = ", *chunk.buffer)
-            } else {
-                // fmt.Println("skipping pixel", currPixelColor)
             }
         }
     }
@@ -137,6 +130,25 @@ func drawChunk(chunk *chunk, img image.Image, startX int, startY int, wg *sync.W
                 // fmt.Println("chunk.buffer AFTER Set() = ", *chunk.buffer)
             } else {
                 // fmt.Println("skipping pixel", currPixelColor)
+            }
+        }
+    }
+
+}
+
+
+func expDrawChunk(chunk *expChunk, startX int, startY int, wg *sync.WaitGroup, conn net.Conn) {
+
+    defer wg.Done()
+
+    for x := 0; x < chunk.width; x++ {
+        for y := 0; y < chunk.height; y++ {
+
+            currPixelColor := chunk.currBuffer.At(x, y)
+            if (currPixelColor != chunk.prevBuffer.At(x, y)) {
+                r, g, b, a := currPixelColor.RGBA()
+                WritePixel(x + startX, y + startY, int(r>>8), int(g>>8), int(b>>8), int(a>>8), conn)
+                chunk.prevBuffer.Set(x + startX, y + startY, currPixelColor)
             }
         }
     }

@@ -2,34 +2,48 @@ package utils
 
 import (
 	"image"
+	"image/draw"
 	"net"
 	"sync"
 
 	"github.com/AlexEidt/Vidio"
 )
 
+func ExpDrawVideo(videoPath string, startX, startY int, center bool, threads int, conn net.Conn) {
+    video, _ := vidio.NewVideo(videoPath)
 
-// func drawFrame(img image.Image, chunks []*chunk, threads int, startX int, startY int, size float64, center bool, conn net.Conn) error {
-//
-//     // scaledWidth, scaledHeight, scale := getScaledImageSize(img, size, conn)
-//
-//     if (center == true) {
-//         startX = (canvasSize.width / 2) - (scaledWidth / 2)
-//         startY = (canvasSize.height / 2) - (scaledHeight / 2)
-//     }
-//
-//     var wg sync.WaitGroup
-//     for i := 0; i < threads; i++ {
-//         wg.Add(1)
-//         go drawChunk(chunks[i], img, startX, startY, &wg, conn)
-//     }
-//
-//     wg.Wait()
-//
-//
-//     return nil
-// }
+    img := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
+    video.SetFrameBuffer(img.Pix)
 
+    width, height := getImageSize(img, conn)
+
+    chunkWidth := width / threads
+    var chunks []*expChunk = expMakeChunks(img, threads, chunkWidth, height)
+
+
+    if (center == true) {
+        startX = (canvasSize.width / 2) - (width / 2)
+        startY = (canvasSize.height / 2) - (height / 2)
+    }
+
+    frame := 0
+    var wg sync.WaitGroup
+    for video.Read() {
+
+        for i := 0; i < threads; i++ {
+            wg.Add(1)
+
+            bounds := image.Rect(0, 0, chunks[i].width, chunks[i].height)
+            draw.Draw(chunks[i].currBuffer, bounds, img, image.Point{chunks[i].xPos, 0}, draw.Src)
+            go expDrawChunk(chunks[i], startX + chunks[i].xPos, startY, &wg, conn)
+
+        }
+
+        wg.Wait()
+        // drawFrame(img, chunks, threads, startX, startY, size, center, conn)
+        frame++
+    }
+}
 
 func NewDrawVideo(videoPath string, startX, startY int, center bool, threads int, conn net.Conn) {
     video, _ := vidio.NewVideo(videoPath)
@@ -37,13 +51,10 @@ func NewDrawVideo(videoPath string, startX, startY int, center bool, threads int
     img := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
     video.SetFrameBuffer(img.Pix)
 
-    // var chunks []*chunk = makeChunks(threads, chunkWidth, scaledHeight) 
-
     width, height := getImageSize(img, conn)
 
     chunkWidth := width / threads
     var chunks []*chunk = newMakeChunks(threads, chunkWidth, height)
-
 
     if (center == true) {
         startX = (canvasSize.width / 2) - (width / 2)
@@ -60,7 +71,6 @@ func NewDrawVideo(videoPath string, startX, startY int, center bool, threads int
         }
 
         wg.Wait()
-        // drawFrame(img, chunks, threads, startX, startY, size, center, conn)
         frame++
     }
 }

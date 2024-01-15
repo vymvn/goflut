@@ -2,7 +2,6 @@ package utils
 
 import (
 	"image"
-	"math"
 	"net"
 	"sync"
 
@@ -21,7 +20,7 @@ func checkCollision(imgWidth, imgHeight, x, y int, xvel, yvel *int) {
 
 func BouncyDrawVideo(videoPath string, startX, startY int, center bool, threads int, conn net.Conn) {
     xvel := 3
-    yvel := 5
+    yvel := 3
     getCanvasSize(&canvasSize, conn)
     for true {
         video, _ := vidio.NewVideo(videoPath)
