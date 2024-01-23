@@ -1,12 +1,13 @@
 package utils
 
 import (
+	"fmt"
 	"image"
-	"image/draw"
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
 	"net"
+	"os"
 	"sync"
 )
 
@@ -30,8 +31,7 @@ func getScaledImageSize(img image.Image, size float64, conn net.Conn) (int, int,
     return scaledWidth, scaledHeight, scale
 }
 
-
-func getImageSize(img image.Image, conn net.Conn) (int, int) {
+func getImageSize(img image.Image) (int, int) {
 
     bounds := img.Bounds()
     imgWidth := bounds.Max.X
@@ -40,32 +40,24 @@ func getImageSize(img image.Image, conn net.Conn) (int, int) {
     return imgWidth, imgHeight
 }
 
-
-func ExpDrawImageThreaded(img image.Image, startX int, startY int, threads int, center bool, conn net.Conn) error {
-
-    scaledWidth, scaledHeight := getImageSize(img, conn)
-
-    if (center == true) {
-        startX = (canvasSize.width / 2) - (scaledWidth / 2)
-        startY = (canvasSize.height / 2) - (scaledHeight / 2)
-    }
-
-    chunkWidth := scaledWidth / threads
-    // var chunks []*chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
-    var chunks []*expChunk = expMakeChunks(img, threads, chunkWidth, scaledHeight)
-
-    bounds := image.Rect(0, 0, chunkWidth, scaledHeight)
+func ExpDrawImageThreaded(chunks []*ImageChunk, globalOpts *GlobalOptions) error {
 
     var wg sync.WaitGroup
-    for i := 0; i < threads; i++ {
+    for i := 0; i < len(chunks); i++ {
         wg.Add(1)
 
-        draw.Draw(chunks[i].currBuffer, bounds, img, image.Point{chunks[i].xPos, 0}, draw.Src)
-        go expDrawChunk(chunks[i], startX + chunks[i].xPos, startY, &wg, conn)
+        // draw.Draw(chunks[i].currBuffer, bounds, img, image.Point{chunks[i].xPos, 0}, draw.Src)
+        // go expDrawChunk(chunks[i], startX + chunks[i].xPos, startY, &wg, newConn)
+        // go drawChunk(chunks[i], img, startX, startY, &wg, chunks[i].conn)
+        go expDrawImageChunk(chunks[i], globalOpts.StartX, globalOpts.StartY, &wg)
     }
 
     wg.Wait()
 
+    // for i := 0; i < len(chunks); i++ {
+    //     chunks[i].conn.Close()
+    // }
+    
     return nil
 }
 
@@ -73,19 +65,33 @@ func DrawImageThreaded(img image.Image, startX int, startY int, size float64, th
 
     scaledWidth, scaledHeight, scale := getScaledImageSize(img, size, conn)
 
+    conn.Close()
     if (center == true) {
         startX = (canvasSize.width / 2) - (scaledWidth / 2)
         startY = (canvasSize.height / 2) - (scaledHeight / 2)
     }
 
     chunkWidth := scaledWidth / threads
-    var chunks []*chunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
+    var chunks []*ImageChunk = makeChunks(threads, chunkWidth, scaledHeight, scale) 
 
     var wg sync.WaitGroup
     for i := 0; i < threads; i++ {
         wg.Add(1)
 
-        go newDrawChunk(chunks[i], img, startX + chunks[i].xPos, startY, &wg, conn)
+        connString := fmt.Sprintf("localhost:1234")
+        // connString := fmt.Sprintf("pixelflut.uwu.industries:1234")
+        newConn, err := net.Dial("tcp", connString)
+        if err != nil {
+            fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
+            os.Exit(1)
+        }
+        defer newConn.Close()
+
+        // connString := fmt.Sprintf("localhost:1234")
+        // draw.Draw(chunks[i].currBuffer, bounds, img, image.Point{chunks[i].xPos, 0}, draw.Src)
+        // go expDrawChunk(chunks[i], startX + chunks[i].xPos, startY, &wg, newConn)
+        go drawChunk(chunks[i], img, startX, startY, &wg, newConn)
+        // go newDrawChunk(chunks[i], img, startX + chunks[i].xPos, startY, &wg, conn)
     }
 
     wg.Wait()
@@ -119,56 +125,3 @@ func DrawImage(img image.Image, startX int, startY int, size float64, center boo
 
     return nil
 }
-
-// func drawImageFromPath(path string, startX, startY int, threads int, size float64, conn net.Conn) error {
-//
-//     // t0 := time.Now()
-//     f, err := os.Open(path)
-//     if err != nil {
-//         return err
-//     }
-//     defer f.Close()
-//
-//     img, _, err := image.Decode(f)
-//     if err != nil {
-//         return err
-//     }
-//
-//     if (startX == -1 && startY == -1) {
-//
-//         scaledWidth, scaledHeight, _ := getImageSize(img, size, conn)
-//
-//         startX = (canvasSize.width / 2) - (scaledWidth / 2)
-//         startY = (canvasSize.height / 2) - (scaledHeight / 2)
-//     }
-//
-//     drawImage(img, startX, startY, threads, size, conn)
-//     // fmt.Printf("drawImage runtime: %v\n", time.Since(t0))
-//
-//     return nil
-// }
-
-// func DrawImageFromPath(path string, startX, startY int, size float64, center bool, conn net.Conn) error {
-//
-//     f, err := os.Open(path)
-//     if err != nil {
-//         return err
-//     }
-//     defer f.Close()
-//
-//     img, _, err := image.Decode(f)
-//     if err != nil {
-//         return err
-//     }
-//
-//     if (center == true) {
-//
-//         scaledWidth, scaledHeight, _ := getScaledImageSize(img, size, conn)
-//         startX = (canvasSize.width / 2) - (scaledWidth / 2)
-//         startY = (canvasSize.height / 2) - (scaledHeight / 2)
-//     }
-//
-//     drawImage(img, startX, startY, size, center, conn)
-//
-//     return nil
-// }

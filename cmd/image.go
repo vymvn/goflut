@@ -1,102 +1,139 @@
 package cmd
 
 import (
-	"fmt"
-	"image"
-	"net"
-	"os"
+    "fmt"
+    "image"
+    "os"
 
-	"github.com/spf13/cobra"
-	"github.com/vymvn/goflut/utils"
+    "github.com/spf13/cobra"
+    "github.com/vymvn/goflut/utils"
 )
 
-var imageCmd = &cobra.Command{
-    Use:   "image",
-    Short: "Image drawing mode.",
-    Run: runImage,
-}
-
-var (
-    imageBounce  bool
-    imageLoop    bool
-    xVel         int
-    yVel         int
-    imageThreads int
-    imagePath    string
-    imageSize    float64
-)
-
-func init() {
-
-    imageCmd.Flags().Float64VarP(&imageSize, "scale", "s", 1, "Scale of the image where 1 is the original size.")
-    // imageCmd.Flags().BoolP("scale-to-fit", "S", true, "Scale to fit the image to the canvas maintaing aspect ratio.")
-    imageCmd.Flags().StringVarP(&imagePath, "image", "i", "", "Path to the image to draw. (required)")
-    imageCmd.MarkFlagRequired("image")
-    // imageCmd.Flags().IntVar(&startX, "x", 0, "Starting X")
-    // imageCmd.Flags().IntVar(&startY, "y", 0, "Starting Y")
-    // imageCmd.Flags().BoolVar(&center, "center", false, "Center image on canvas")
-    imageCmd.Flags().BoolVar(&imageBounce, "bounce", false, "Bounce around (best used with a smaller picture)")
-    imageCmd.Flags().IntVar(&imageThreads, "threads", 1, "Number of threads.")
-    imageCmd.Flags().BoolVar(&imageLoop, "loop", false, "Keeps drawing in a loop.")
-    imageCmd.Flags().IntVar(&xVel, "x-vel", 1, "The velocity on the X-Axis. (only for bounce mode)")
-    imageCmd.Flags().IntVar(&yVel, "y-vel", 2, "The velocity on the Y-Axis. (only for bounce mode)")
-
-    rootCmd.AddCommand(imageCmd)
-
-    // if (imageCmd.Parent().Use == "bounce") {
-    //     bounce = true
-    // }
+type ImageOptions struct {
+    Path      string
+    Scale     float64
+    Bounce    bool
+    Center    bool
+    VelocityX float64
+    VelocityY float64
 
 }
+
+var imageCmd *cobra.Command
 
 func runImage(cmd *cobra.Command, args []string) {
 
-    connString := fmt.Sprintf("%s:%d", host, port)
-    conn, err := net.Dial("tcp", connString)
+    // Parsing flags
+    globalOpts, imageOpts, err := parseImageOptions()
     if err != nil {
-        fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
-        os.Exit(1)
+        fmt.Errorf("error on parsing arguments: %w", err)
     }
-    defer conn.Close()
 
-    f, err := os.Open(imagePath)
+    // Opening image
+    f, err := os.Open(imageOpts.Path)
     if err != nil {
-        fmt.Fprintln(os.Stderr, "Failed to open image:\n", err)
+        fmt.Errorf("error opening image: %w", err)
     }
     defer f.Close()
 
+    // Decoding image into an image.Image struct
     img, _, err := image.Decode(f)
     if err != nil {
-        fmt.Fprintln(os.Stderr, "Failed to decode image:\n", err)
+        fmt.Errorf("error decoding image: %w", err)
     }
 
-    if (imageBounce == true) {
+    // Splitting image into chunks for threading
+    err, chunks := utils.ExpMakeImageChunks(img, globalOpts, imageOpts)
+    if err != nil {
+        fmt.Errorf("error making image chunks: %w", err)
+    }
 
-        err := utils.BouncingImage(img, startX, startY, xVel, yVel, imageSize, conn)
+    if (imageOpts.Bounce == true) {
+
+        err = utils.BouncingImage(chunks, globalOpts, imageOpts)
         if err != nil {
             fmt.Fprintln(os.Stderr, "Failed to bounce image:\n", err)
         }
 
-    } else {
+    } else if (globalOpts.Loop == true) {
 
-        if (imageLoop == true) {
-
-            for true{
-                err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
-                if err != nil {
-                    fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
-                }
-            }
-
-        } else {
-
-            err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
-            // err = utils.ExpDrawImageThreaded(img, startX, startY, imageThreads, center, conn)
+        for true {
+            err := utils.ExpDrawImageThreaded(chunks, globalOpts)
+            // err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
             if err != nil {
                 fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
+                os.Exit(1)
             }
         }
 
+    } else {
+
+        err = utils.ExpDrawImageThreaded(chunks, globalOpts)
+        // err = utils.DrawImageThreaded(img, startX, startY, imageSize, imageThreads, center, conn)
+        if err != nil {
+            fmt.Fprintln(os.Stderr, "Could not draw image:\n", err)
+            os.Exit(1)
+        }
     }
+
+}
+
+func parseImageOptions() (*utils.GlobalOptions, *utils.ImageOptions, error) {
+    globalOpts, err := parseGlobalOptions()
+    if err != nil {
+        return nil, nil, err
+    }
+
+    imageOpts := utils.NewImageOptions()
+
+    imageOpts.Path, err  = imageCmd.Flags().GetString("path")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for image path: %w", err)
+    }
+
+    imageOpts.Scale, err = imageCmd.Flags().GetFloat64("scale")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for image scale: %w", err)
+    }
+
+    imageOpts.Bounce, err = imageCmd.Flags().GetBool("bounce")
+    if err != nil {
+        return nil, nil, fmt.Errorf("could not set bounce flag: %w", err)
+    }
+
+    imageOpts.VelocityX, err = imageCmd.Flags().GetFloat64("x-vel")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for image x-velocity: %w", err)
+    }
+
+    imageOpts.VelocityY, err = imageCmd.Flags().GetFloat64("y-vel")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for image y-velocity: %w", err)
+    }
+
+    return globalOpts, imageOpts, nil
+}
+
+func init() {
+
+    imageCmd = &cobra.Command{
+        Use:   "image",
+        Short: "Image drawing mode.",
+        Run: runImage,
+    }
+
+    imageCmd.Flags().Float64P("scale", "s", 1, "Scale of the image where 1 is the original size.")
+    // imageCmd.Flags().BoolP("scale-to-fit", "S", true, "Scale to fit the image to the canvas maintaing aspect ratio.")
+    imageCmd.Flags().StringP("image", "i", "", "Path to the image to draw. (required)")
+    imageCmd.MarkFlagRequired("image")
+    // imageCmd.Flags().IntVar(&startX, "x", 0, "Starting X")
+    // imageCmd.Flags().IntVar(&startY, "y", 0, "Starting Y")
+    // imageCmd.Flags().BoolVar(&center, "center", false, "Center image on canvas")
+    imageCmd.Flags().Bool("bounce", false, "Bounce around (best used with a smaller picture)")
+    imageCmd.Flags().Bool("center", false, "Centers the image on the canvas.")
+    imageCmd.Flags().Float64("x-vel", 70, "The velocity on the X-Axis. (only for bounce mode)")
+    imageCmd.Flags().Float64("y-vel", 70, "The velocity on the Y-Axis. (only for bounce mode)")
+
+    rootCmd.AddCommand(imageCmd)
 
 }

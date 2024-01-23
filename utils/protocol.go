@@ -6,6 +6,15 @@ import (
 	"net"
 )
 
+func makeConnection(connString string) (error, net.Conn) {
+
+    newConn, err := net.Dial("tcp", connString)
+    if err != nil {
+        return err, nil
+    }
+
+    return nil, newConn
+}
 
 func WritePixel(x, y, r, g, b, a int, conn net.Conn) error{
     var cmd string
@@ -30,8 +39,13 @@ func drawRect(x, y, w, h, r, g, b, a int, conn net.Conn) {
     }
 }
 
-func Noise(startX, startY int, conn net.Conn) {
+func Noise(startX, startY int, connString string) error {
 
+    err, conn := makeConnection(connString)
+    if err != nil {
+        return err
+    }
+    defer conn.Close()
     getCanvasSize(&canvasSize, conn)
 
     for x := 0; x < canvasSize.width; x++ {
@@ -40,4 +54,6 @@ func Noise(startX, startY int, conn net.Conn) {
             WritePixel(x + startX, y + startY, rand.Intn(256), rand.Intn(256), rand.Intn(256), 255, conn)
         }
     }
+
+    return nil
 }

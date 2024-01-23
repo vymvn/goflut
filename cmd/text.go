@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -15,16 +14,10 @@ var textCmd = &cobra.Command{
 	Run: runText,
 }
 
-var (
-    text      string
-    fontSize  float64
-    textLoop  bool
-)
-
 func init() {
-	textCmd.Flags().StringVarP(&text, "text", "t", "", "Text to be rendered.")
-	textCmd.Flags().Float64VarP(&fontSize, "font-size", "s", 12, "Font size of text.")
-    textCmd.Flags().BoolVar(&textLoop, "loop", false, "Keeps drawing in a loop.")
+	textCmd.Flags().StringP("text", "t", "", "Text to be rendered.")
+	textCmd.Flags().Float64P("font-size", "s", 12, "Font size of text.")
+	textCmd.Flags().StringP("font", "f", "fonts/Lato-Regular.ttf", "Font size of text.")
 
     textCmd.MarkFlagRequired("text")
 
@@ -33,34 +26,57 @@ func init() {
 
 func runText(cmd *cobra.Command, args []string) {
 
-    connString := fmt.Sprintf("%s:%d", host, port)
-    conn, err := net.Dial("tcp", connString)
+    // Parsing flags
+    globalOpts, textOpts, err := parseTextOptions()
     if err != nil {
-        fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
-        os.Exit(1)
+        fmt.Errorf("error on parsing arguments: %w", err)
     }
-    defer conn.Close()
 
-    if textLoop == true {
+    if globalOpts.Loop == true {
 
         for true {
 
-            err = utils.DrawText(text, startX, startY, fontSize, center, conn)
+            err = utils.DrawText(globalOpts, textOpts)
             if err != nil {
                 fmt.Fprintln(os.Stderr, "Could not draw text:\n", err)
             }
 
         }
 
-
     } else {
 
-        err = utils.DrawText(text, startX, startY, fontSize, center, conn)
+        err = utils.DrawText(globalOpts, textOpts)
         if err != nil {
             fmt.Fprintln(os.Stderr, "Could not draw text:\n", err)
         }
 
     }
 
+}
 
+func parseTextOptions() (*utils.GlobalOptions, *utils.TextOptions, error) {
+
+    globalOpts, err := parseGlobalOptions()
+    if err != nil {
+        return nil, nil, err
+    }
+
+    textOpts := utils.NewTextOptions()
+
+    textOpts.Text, err  = imageCmd.Flags().GetString("text")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for text: %w", err)
+    }
+
+    textOpts.FontPath, err  = imageCmd.Flags().GetString("font")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for text: %w", err)
+    }
+
+    textOpts.FontSize, err  = imageCmd.Flags().GetFloat64("font-size")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for text: %w", err)
+    }
+
+    return globalOpts, textOpts, nil
 }

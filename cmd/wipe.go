@@ -2,27 +2,30 @@ package cmd
 
 import (
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/vymvn/goflut/utils"
 )
 
-var wipeCmd = &cobra.Command{
+var wipeCmd = &cobra.Command {
 	Use:   "wipe",
 	Short: "Wipes the canvas.",
     Run: func(cmd *cobra.Command, args []string) {
 
-        connString := fmt.Sprintf("%s:%d", host, port)
-        conn, err := net.Dial("tcp", connString)
+        globalOpts, err := parseGlobalOptions()
         if err != nil {
-            fmt.Fprintln(os.Stderr, "Could not connect to \"" + connString + "\":\n", err)
+            fmt.Fprintln(os.Stderr, "error on parsing arguments: %w", err)
             os.Exit(1)
         }
-        defer conn.Close()
+        connString := fmt.Sprintf("%s:%d", globalOpts.Host, globalOpts.Port)
 
-        utils.WipeCanvas(conn)
+        err = utils.WipeCanvas(connString)
+        // err := utils.Noise(startX, startY, connString)
+        if err != nil {
+            fmt.Fprintln(os.Stderr, "Could not wipe canvas:\n", err)
+            os.Exit(1)
+        }
     },
 }
 

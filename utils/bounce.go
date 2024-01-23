@@ -1,14 +1,15 @@
 package utils
 
 import (
+	"fmt"
 	"image"
-	"net"
 	"sync"
+	"time"
 
 	vidio "github.com/AlexEidt/Vidio"
 )
 
-func checkCollision(imgWidth, imgHeight, x, y int, xvel, yvel *int) {
+func checkCollision(imgWidth, imgHeight int, x, y int, xvel, yvel *float64) {
 
     if x + imgWidth >= canvasSize.width || x + imgWidth < 0 || x >= canvasSize.width || x <= 0 {
         *xvel *= -1
@@ -18,111 +19,114 @@ func checkCollision(imgWidth, imgHeight, x, y int, xvel, yvel *int) {
     }
 }
 
-func BouncyDrawVideo(videoPath string, startX, startY int, center bool, threads int, conn net.Conn) {
-    xvel := 3
-    yvel := 3
+func BouncyDrawVideo(video *vidio.Video, frameBuffer *image.RGBA, chunks []*VideoChunk, globalOpts *GlobalOptions, videoOpts *VideoOptions) error {
+
+    connString := fmt.Sprintf("%s:%d", globalOpts.Host, globalOpts.Port)
+    err, conn := makeConnection(connString)
+    if err != nil {
+        return err
+    }
     getCanvasSize(&canvasSize, conn)
+    conn.Close()
+
+    fps := video.FPS()
+    // fps := 60
+    totalFrames := video.Frames()
+
+    frameWidth  := frameBuffer.Bounds().Max.X
+    frameHeight := frameBuffer.Bounds().Max.Y
+
+    xvel := 50.0
+    yvel := 50.0
+
+    // if (center == true) {
+    //     startX = (canvasSize.width / 2) - (width / 2)
+    //     startY = (canvasSize.height / 2) - (height / 2)
+    // }
+
+    for i := 0; i < len(chunks); i++ {
+        chunks[i].currFrameBuffer = frameBuffer
+    }
+
+    var wg sync.WaitGroup
     for true {
-        video, _ := vidio.NewVideo(videoPath)
 
-        img := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-        // img := image.NewRGBA(image.Rect(xvel, yvel, video.Width()+xvel*2, video.Height()+yvel*2))
-        video.SetFrameBuffer(img.Pix)
+        lastTime := time.Now()
+        // for video.Read() { 
+        for currFrame := 0; currFrame < totalFrames; currFrame++ {
 
-        // var chunks []*chunk = makeChunks(threads, chunkWidth, scaledHeight) 
+            video.ReadFrame(currFrame)
 
-        width, height := getImageSize(img, conn)
+            // Calculate delta time
+            currentTime := time.Now()
+            dt := currentTime.Sub(lastTime).Seconds()
+            lastTime = currentTime
 
-        chunkWidth := width / threads
-        var chunks []*chunk = newMakeChunks(threads, chunkWidth, height)
+            for i := 0; i < len(chunks); i++ {
+                wg.Add(1)
+                // chunks[i].currFrameBuffer = frameBuffer
+                go DrawVideoChunkFull(chunks[i], globalOpts.StartX, globalOpts.StartY, &wg)
+            }
 
+            globalOpts.StartX += int(xvel * dt)
+            globalOpts.StartY += int(yvel * dt)
+            // xOffset += int(xvel)
+            // yOffset += int(yvel)
 
-        if (center == true) {
-            startX = (canvasSize.width / 2) - (width / 2)
-            startY = (canvasSize.height / 2) - (height / 2)
-        }
-
-        frame := 0
-
-        var wg sync.WaitGroup
-        for video.Read() { 
-            wg.Add(1)
-            go newDrawChunk(chunks[0], img, startX, startY, &wg, conn)
-
-            startX += xvel
-            startY += yvel
-
-            checkCollision(width, height, startX, startY, &xvel, &yvel)
+            checkCollision(frameWidth, frameHeight, globalOpts.StartX, globalOpts.StartY, &xvel, &yvel)
 
             wg.Wait()
             // drawFrame(img, chunks, threads, startX, startY, size, center, conn)
-            frame++
-        }
-    }
-}
-
-
-func BouncingVideo(videoPath string, startX, startY int, center bool, threads int, conn net.Conn) error {
-
-    xvel := 5
-    yvel := 5
-    getCanvasSize(&canvasSize, conn)
-    for true {
-        video, err := vidio.NewVideo(videoPath)
-        if err != nil {
-            return err
+            time.Sleep(time.Second / time.Duration(fps))
         }
 
-        img := image.NewRGBA(image.Rect(0, 0, video.Width(), video.Height()))
-        video.SetFrameBuffer(img.Pix)
-
-        width, height := getImageSize(img, conn)
-
-        chunkWidth := width / threads
-        var chunks []*chunk = newMakeChunks(threads, chunkWidth, height)
-
-        if (center == true) {
-            startX = (canvasSize.width / 2) - (width / 2)
-            startY = (canvasSize.height / 2) - (height / 2)
-        }
-
-        var wg sync.WaitGroup
-        frame := 0
-        for video.Read() {
-
-            checkCollision(width, height, startX, startY, &xvel, &yvel)
-            startX += xvel
-            startY += yvel
-
-            for i := 0; i < threads; i++ {
-                wg.Add(1)
-                go newDrawChunk(chunks[i], img, startX, startY, &wg, conn)
-            }
-            wg.Wait()
-
-            frame++
-        }
     }
 
     return nil
 }
 
-func BouncingImage(img image.Image, x, y, xvel, yvel int, size float64, conn net.Conn) error {
+func BouncingImage(chunks []*ImageChunk, globalOpts *GlobalOptions, imageOpts *ImageOptions) error {
 
-    imgWidth, imgHeight, _ := getScaledImageSize(img, size, conn)
+    connString := fmt.Sprintf("%s:%d", globalOpts.Host, globalOpts.Port)
+    err, conn := makeConnection(connString)
+    if err != nil {
+        return err
+    }
 
-    drawCounter := 0
+    getCanvasSize(&canvasSize, conn)
+
+    imgWidth, imgHeight, _ := getScaledImageSize(chunks[0].img, imageOpts.Scale, conn)
+    conn.Close()
+
+    var wg sync.WaitGroup
+    lastTime := time.Now()
     for true {
-        x += xvel
-        y += yvel
 
-        checkCollision(imgWidth, imgHeight, x, y, &xvel, &yvel)
+        // drawCounter := 0
 
-        if (drawCounter == 10) {
-            DrawImage(img, x, y, size, false, conn)
-            drawCounter = 0
+        // Calculate delta time
+        currentTime := time.Now()
+        dt := currentTime.Sub(lastTime).Seconds()
+        lastTime = currentTime
+
+        globalOpts.StartX += int(imageOpts.VelocityX * dt)
+        globalOpts.StartY += int(imageOpts.VelocityY * dt)
+        // xOffset += int(xvel)
+        // yOffset += int(yvel)
+
+
+        // if (drawCounter == 10) {
+        // drawCounter = 0
+        // }
+        // drawCounter++
+        checkCollision(imgWidth, imgHeight, globalOpts.StartX, globalOpts.StartY, &imageOpts.VelocityX, &imageOpts.VelocityY)
+        for i := 0; i < len(chunks); i++ {
+            wg.Add(1)
+            go expDrawImageChunk(chunks[i], globalOpts.StartX, globalOpts.StartY, &wg)
         }
-        drawCounter++
+
+        wg.Wait()
+
     }
     return nil
 }

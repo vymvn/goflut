@@ -1,21 +1,13 @@
 package cmd
 
 import (
-	"context"
-
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/vymvn/goflut/utils"
 )
 
-
-var (
-    host   string
-    port   int
-    startX int
-    startY int
-    center    bool
-)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -24,27 +16,7 @@ var rootCmd = &cobra.Command{
     // Run: runRoot,
 }
 
-var mainContext context.Context
 func Execute() {
-	// var cancel context.CancelFunc
-	// mainContext, cancel = context.WithCancel(context.Background())
-	// defer cancel()
-	//
-	// signalChan := make(chan os.Signal, 1)
-	// signal.Notify(signalChan, os.Interrupt)
-	// defer func() {
-	// 	signal.Stop(signalChan)
-	// 	cancel()
-	// }()
-	// go func() {
-	// 	select {
-	// 	case <-signalChan:
-	// 		// caught CTRL+C
-	// 		fmt.Println("\n[!] Keyboard interrupt detected, terminating.")
-	// 		cancel()
-	// 	case <-mainContext.Done():
-	// 	}
-	// }()
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -52,11 +24,13 @@ func Execute() {
 }
 
 func init() {
-    rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "", "The pixelflut server hostname or ip.")
-    rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 0, "You know what to put here")
-    rootCmd.PersistentFlags().IntVarP(&startX, "x-offset", "x", 0, "X axis offset.")
-    rootCmd.PersistentFlags().IntVarP(&startY, "y-offset", "y", 0, "Y axis offset.")
-    rootCmd.PersistentFlags().BoolVar(&center, "center", false, "Centers the drawing.")
+    rootCmd.PersistentFlags().StringP("host", "H", "", "The pixelflut server hostname or ip.")
+    rootCmd.PersistentFlags().IntP("port", "p", 0, "Server port.")
+    rootCmd.PersistentFlags().IntP("x-offset", "x", 0, "X axis offset.")
+    rootCmd.PersistentFlags().IntP("y-offset", "y", 0, "Y axis offset.")
+    // rootCmd.PersistentFlags().Bool("center", false, "Centers the drawing.")
+    rootCmd.PersistentFlags().Bool("loop", false, "Loops duh.")
+    rootCmd.PersistentFlags().Int("threads", 1, "Number of threads to use.")
 
     rootCmd.MarkPersistentFlagRequired("host")
     rootCmd.MarkPersistentFlagRequired("host")
@@ -68,3 +42,53 @@ func init() {
 //
 // }
 
+func parseGlobalOptions() (*utils.GlobalOptions, error) {
+	globalOpts := utils.NewGlobalOptions()
+
+	threads, err := rootCmd.Flags().GetInt("threads")
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for threads: %w", err)
+	}
+
+	if threads <= 0 {
+		return nil, fmt.Errorf("threads must be bigger than 0")
+	}
+	globalOpts.Threads = threads
+
+	globalOpts.Host, err = rootCmd.Flags().GetString("host")
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for wordlist: %w", err)
+	}
+
+	port, err := rootCmd.Flags().GetInt("port")
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for port: %w", err)
+	}
+
+	if port < 0 {
+		return nil, fmt.Errorf("wordlist-offset must be bigger or equal to 0")
+	}
+	globalOpts.Port = port
+
+	xOffset, err := rootCmd.Flags().GetInt("x-offset")
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for x-offset: %w", err)
+	}
+
+	if xOffset < 0 {
+		return nil, fmt.Errorf("x-offset must be bigger or equal to 0")
+	}
+	globalOpts.StartX = xOffset
+
+	yOffset, err := rootCmd.Flags().GetInt("y-offset")
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for y-offset: %w", err)
+	}
+
+	if xOffset < 0 {
+		return nil, fmt.Errorf("y-offset must be bigger or equal to 0")
+	}
+	globalOpts.StartY = yOffset
+
+	return globalOpts, nil
+}

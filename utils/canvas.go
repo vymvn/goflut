@@ -28,12 +28,28 @@ func getCanvasSize(canvasSize *Size, conn net.Conn) error {
     return nil
 }
 
-func WipeCanvas(conn net.Conn) {
+func WipeCanvas(connString string) error {
+    err, conn := makeConnection(connString)
+    if err != nil {
+        return err
+    }
+    defer conn.Close()
+
     getCanvasSize(&canvasSize, conn)
     drawRect(0, 0, canvasSize.width, canvasSize.height, 50, 50, 50, 255, conn)
+
+    return nil
 }
 
-func ApplyBackground(r, g, b int, conn net.Conn) {
+func ApplyBackground(r, g, b int, connString string) error {
+    err, conn := makeConnection(connString)
+    if err != nil {
+        return err
+    }
+    defer conn.Close()
+
     getCanvasSize(&canvasSize, conn)
     drawRect(0, 0, canvasSize.width, canvasSize.height, r, g, b, 255, conn)
+
+    return nil
 }
