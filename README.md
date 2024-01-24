@@ -56,6 +56,7 @@ Use "goflut [command] --help" for more information about a command.
 # TODO
 
 - [ ] Pre-processed video frames.
+- [ ] Maybe multithreading for text and wipe commands (bleehhh lazy)
 
 # Known bugs
 
