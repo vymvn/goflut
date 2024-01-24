@@ -22,7 +22,7 @@ go build
 
 # You can also just install the binary in your GOPATH (you would need to set a path for a font file when using text command)
 go install https://github.com/vymvn/goflut@latest
-
+goflut
 ```
 
 # Usage
