@@ -8,16 +8,19 @@ import (
 	"github.com/vymvn/goflut/utils"
 )
 
-var textCmd = &cobra.Command{
-	Use:   "text",
-	Short: "Text rendering mode",
-	Run: runText,
-}
+var textCmd *cobra.Command
 
 func init() {
-	textCmd.Flags().StringP("text", "t", "", "Text to be rendered.")
-	textCmd.Flags().Float64P("font-size", "s", 12, "Font size of text.")
-	textCmd.Flags().StringP("font", "f", "fonts/Lato-Regular.ttf", "Font size of text.")
+
+    textCmd = &cobra.Command{
+        Use:   "text",
+        Short: "Text rendering mode",
+        Run: runText,
+    }
+
+    textCmd.Flags().StringP("text", "t", "", "Text to be rendered.")
+    textCmd.Flags().Float64P("font-size", "s", 12, "Font size of text.")
+    textCmd.Flags().StringP("font", "f", "fonts/Lato-Regular.ttf", "Font size of text.")
 
     textCmd.MarkFlagRequired("text")
 
@@ -29,7 +32,8 @@ func runText(cmd *cobra.Command, args []string) {
     // Parsing flags
     globalOpts, textOpts, err := parseTextOptions()
     if err != nil {
-        fmt.Errorf("error on parsing arguments: %w", err)
+        fmt.Fprintln(os.Stderr, "error on parsing arguments: ", err)
+        os.Exit(1)
     }
 
     if globalOpts.Loop == true {
@@ -63,17 +67,17 @@ func parseTextOptions() (*utils.GlobalOptions, *utils.TextOptions, error) {
 
     textOpts := utils.NewTextOptions()
 
-    textOpts.Text, err  = imageCmd.Flags().GetString("text")
+    textOpts.Text, err  = textCmd.Flags().GetString("text")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for text: %w", err)
     }
 
-    textOpts.FontPath, err  = imageCmd.Flags().GetString("font")
+    textOpts.FontPath, err  = textCmd.Flags().GetString("font")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for text: %w", err)
     }
 
-    textOpts.FontSize, err  = imageCmd.Flags().GetFloat64("font-size")
+    textOpts.FontSize, err  = textCmd.Flags().GetFloat64("font-size")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for text: %w", err)
     }

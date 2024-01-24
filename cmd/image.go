@@ -26,26 +26,30 @@ func runImage(cmd *cobra.Command, args []string) {
     // Parsing flags
     globalOpts, imageOpts, err := parseImageOptions()
     if err != nil {
-        fmt.Errorf("error on parsing arguments: %w", err)
+        fmt.Fprintln(os.Stderr, "error on parsing arguments: ", err)
+        os.Exit(1)
     }
 
     // Opening image
     f, err := os.Open(imageOpts.Path)
     if err != nil {
-        fmt.Errorf("error opening image: %w", err)
+        fmt.Fprintln(os.Stderr, "error opening image: ", err)
+        os.Exit(1)
     }
     defer f.Close()
 
     // Decoding image into an image.Image struct
     img, _, err := image.Decode(f)
     if err != nil {
-        fmt.Errorf("error decoding image: %w", err)
+        fmt.Fprintln(os.Stderr, "error decoding image: ", err)
+        os.Exit(1)
     }
 
     // Splitting image into chunks for threading
     err, chunks := utils.ExpMakeImageChunks(img, globalOpts, imageOpts)
     if err != nil {
-        fmt.Errorf("error making image chunks: %w", err)
+        fmt.Fprintln(os.Stderr, "error making image chunks: ", err)
+        os.Exit(1)
     }
 
     if (imageOpts.Bounce == true) {
@@ -86,7 +90,7 @@ func parseImageOptions() (*utils.GlobalOptions, *utils.ImageOptions, error) {
 
     imageOpts := utils.NewImageOptions()
 
-    imageOpts.Path, err  = imageCmd.Flags().GetString("path")
+    imageOpts.Path, err  = imageCmd.Flags().GetString("image")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for image path: %w", err)
     }

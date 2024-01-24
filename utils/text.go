@@ -26,7 +26,8 @@ func DrawText(globalOpts *GlobalOptions, textOpts *TextOptions) error {
 
     fontBytes, err := os.ReadFile(textOpts.FontPath)
     if err != nil {
-        return err
+        // return err
+        return fmt.Errorf("Couldn't open default font file\nUse -f to pass a .ttf font file: %w", err)
     }
 	f, err := freetype.ParseFont(fontBytes)
 	if err != nil {

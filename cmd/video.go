@@ -8,13 +8,17 @@ import (
 	"github.com/vymvn/goflut/utils"
 )
 
-var videoCmd = &cobra.Command{
-	Use:   "video",
-	Short: "Video streaming mode.",
-	Run: runVideo,
-}
+var videoCmd *cobra.Command
 
 func init() {
+
+
+    videoCmd = &cobra.Command{
+        Use:   "video",
+        Short: "Video streaming mode.",
+        Run: runVideo,
+    }
+
 	rootCmd.AddCommand(videoCmd)
 
 	videoCmd.Flags().StringP("video", "v", "", "Path of video or gif. (Or anything that ffmpeg supports lol)")
@@ -62,17 +66,22 @@ func parseVideoOptions() (*utils.GlobalOptions, *utils.VideoOptions, error) {
 
     videoOpts := utils.NewVideoOptions()
 
-    videoOpts.Bounce, err = imageCmd.Flags().GetBool("bounce")
+    videoOpts.Path, err  = videoCmd.Flags().GetString("video")
+    if err != nil {
+        return nil, nil, fmt.Errorf("invalid value for image path: %w", err)
+    }
+
+    videoOpts.Bounce, err = videoCmd.Flags().GetBool("bounce")
     if err != nil {
         return nil, nil, fmt.Errorf("could not set bounce flag: %w", err)
     }
 
-    videoOpts.VelocityX, err = imageCmd.Flags().GetFloat64("x-vel")
+    videoOpts.VelocityX, err = videoCmd.Flags().GetFloat64("x-vel")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for image x-velocity: %w", err)
     }
 
-    videoOpts.VelocityY, err = imageCmd.Flags().GetFloat64("y-vel")
+    videoOpts.VelocityY, err = videoCmd.Flags().GetFloat64("y-vel")
     if err != nil {
         return nil, nil, fmt.Errorf("invalid value for image y-velocity: %w", err)
     }
