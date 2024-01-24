@@ -55,7 +55,7 @@ Use "goflut [command] --help" for more information about a command.
 
 # TODO
 
-[] Pre-processed video frames.
+[*] Pre-processed video frames.
 
 # Known bugs
 
