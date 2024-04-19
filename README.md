@@ -4,7 +4,7 @@ Pixelflut client written in Go
 # Features
 
 - Image: Multithreaded image drawing with scaling and position control.
-- Video/Gif: Multithreaded real time video streaming with position control (no scaling you scale the video womp womp).
+- Video/Gif: Multithreaded real time video streaming with position control (no scaling you scale the video womp womp). For an actual good video player checkout [bad-apple-flut](https://github.com/peppidesu/bad-apple-flut).
 - Text: Text rendering with size, position and font control (ttf font files only for now).
 - Wipe: Just wipes the canvas with a boring grey color.
 
@@ -63,3 +63,10 @@ Use "goflut [command] --help" for more information about a command.
 - Multithreaded video not as smooth as single thread.
 - Text background needs better calculations.
 
+# People I stole ideas from (thanks)
+
+- berries: The crow academy pixelflut ambassador.
+- peppidesu: Helped me optimize video a little.
+- skelly: Think I stole the multi-threading image chunks idea from him.
+- trintler: Stole a font from him.
+- pioli: Forked this and added cool stuff, like bouncing. Check it out [here](https://github.com/pioliX000/goflutSILLYEDITION).
